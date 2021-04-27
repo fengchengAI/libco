@@ -21,8 +21,7 @@
 .type  coctx_swap, @function
 #endif
 coctx_swap:
-
-
+// rdi 是一个参数， rsi是第二个形参，下面可以理解为将寄存器状态保存在第一个形参里面，然后将寄存器状态设置为第二个参数对应的数据
 #if defined(__x86_64__)
 	leaq (%rsp),%rax
     movq %rax, 104(%rdi)

@@ -24,7 +24,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
-#include <time.h>
 
 
 #include <sys/epoll.h>
@@ -33,7 +32,7 @@ struct co_epoll_res
 {
 	int size;
 	struct epoll_event *events;
-	struct kevent *eventlist;
+	//struct kevent *eventlist;
 };
 int 	co_epoll_wait( int epfd,struct co_epoll_res *events,int maxevents,int timeout );
 int 	co_epoll_ctl( int epfd,int op,int fd,struct epoll_event * );

@@ -75,7 +75,7 @@ extern void coctx_swap(coctx_t*, coctx_t*) asm("coctx_swap");
 };
 
 int coctx_make(coctx_t* ctx, coctx_pfn_t pfn, const void* s, const void* s1) {
-    // make room for coctx_param
+    // 将s,s1 和pfn绑定到ctx中
     // 此时sp其实就是esp指向的地方 其中ss_size感觉像是这个栈上目前剩余的空间,
     char* sp = ctx->ss_sp + ctx->ss_size - sizeof(coctx_param_t);
 

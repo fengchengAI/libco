@@ -9,10 +9,10 @@ SET(CMAKE_BUILD_TYPE "Debug")
 set(LIBCO_VERSION   0.5)
 
 # Set cflags
-set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -g -fno-strict-aliasing -O2 -Wall -export-dynamic -Wall -pipe  -D_GNU_SOURCE -D_REENTRANT -fPIC -Wno-deprecated -m64)
+#set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -g -fno-strict-aliasing -O2 -Wall -export-dynamic -Wall -pipe  -D_GNU_SOURCE -D_REENTRANT -fPIC -Wno-deprecated -m64)
 
 # Use c and asm
-enable_language(C ASM CXX)
+enable_language(ASM CXX)
 
 # Add source files
 set(SOURCE_FILES
@@ -25,7 +25,7 @@ set(SOURCE_FILES
 
 # Add static and shared library target
 add_library(colib_static STATIC ${SOURCE_FILES})
-add_library(colib_shared SHARED ${SOURCE_FILES})
+add_library(colib_shared SHARED ${SOURCE_FILES} example_test.cpp)
 
 # Set library output name
 set_target_properties(colib_static PROPERTIES OUTPUT_NAME colib)

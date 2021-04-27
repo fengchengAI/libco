@@ -18,13 +18,11 @@
 
 #include "co_epoll.h"
 #include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
+
 
 int	co_epoll_wait( int epfd,struct co_epoll_res *events,int maxevents,int timeout )
 {
-	return epoll_wait( epfd,events->events,maxevents,timeout );
+	return epoll_wait( epfd, events->events, maxevents, timeout );
 }
 int	co_epoll_ctl( int epfd,int op,int fd,struct epoll_event * ev )
 {

@@ -35,11 +35,6 @@
 #include <errno.h>
 #include <sys/wait.h>
 
-#ifdef __FreeBSD__
-#include <cstring>
-#include <sys/types.h>
-#include <sys/wait.h>
-#endif
 
 using namespace std;
 struct task_t
@@ -198,6 +193,7 @@ static int CreateTcpSocket(const unsigned short shPort /* = 0 */,const char *psz
 
 int main(int argc,char *argv[])
 {
+    /*
 	if(argc<5){
 		printf("Usage:\n"
                "example_echosvr [IP] [PORT] [TASK_COUNT] [PROCESS_COUNT]\n"
@@ -208,7 +204,14 @@ int main(int argc,char *argv[])
 	int port = atoi( argv[2] );
 	int cnt = atoi( argv[3] );
 	int proccnt = atoi( argv[4] );
+
 	bool deamonize = argc >= 6 && strcmp(argv[5], "-d") == 0;
+    */
+    const char *ip = "127.0.0.1";
+    int port = 9090;
+    int cnt = 10;
+    int proccnt = 1;
+    bool deamonize = false;
 
 	g_listen_fd = CreateTcpSocket( port,ip,true );
 	listen( g_listen_fd,1024 );
@@ -237,19 +240,19 @@ int main(int argc,char *argv[])
 			task_t * task = (task_t*)calloc( 1,sizeof(task_t) );
 			task->fd = -1;
 
-			co_create( &(task->co),NULL,readwrite_routine,task );
+			co_create( &(task->co),nullptr,readwrite_routine,task );
 			co_resume( task->co );
 
 		}
-		stCoRoutine_t *accept_co = NULL;
-		co_create( &accept_co,NULL,accept_routine,0 );
+		stCoRoutine_t *accept_co = nullptr;
+		co_create( &accept_co,nullptr, accept_routine,0 );
 		co_resume( accept_co );
 
 		co_eventloop( co_get_epoll_ct(),0,0 );
 
 		exit(0);
 	}
-	if(!deamonize) wait(NULL);
+	if(!deamonize) wait(nullptr);
 	return 0;
 }
 

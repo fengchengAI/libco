@@ -49,15 +49,19 @@
 
 typedef long long ll64_t;
 
+//还有一个很重要的作用就是在libco中套接字在hook后的fcntl中都设置为非阻塞,这里保存了套接字原有的阻塞属性
+
 struct rpchook_t
 {
-	int user_flag;
-	struct sockaddr_in dest; //maybe sockaddr_un;
-	int domain; //AF_LOCAL , AF_INET
+    int user_flag;									// 记录套接字的状态
+    struct sockaddr_in dest; //maybe sockaddr_un;	// 套机字目标地址
+    int domain; //AF_LOCAL->域套接字 , AF_INET->IP	 // 套接字类型
 
-	struct timeval read_timeout;
-	struct timeval write_timeout;
+    struct timeval read_timeout;					// 读超时时间
+    struct timeval write_timeout;					// 写超时时间
 };
+
+
 static inline pid_t GetPid()
 {
 	char **p = (char**)pthread_self();
@@ -130,26 +134,6 @@ static gethostbyname_r_pfn_t g_sys_gethostbyname_r_func = (gethostbyname_r_pfn_t
 
 static __poll_pfn_t g_sys___poll_func = (__poll_pfn_t)dlsym(RTLD_NEXT, "__poll");
 
-
-/*
-static pthread_getspecific_pfn_t g_sys_pthread_getspecific_func 
-			= (pthread_getspecific_pfn_t)dlsym(RTLD_NEXT,"pthread_getspecific");
-
-static pthread_setspecific_pfn_t g_sys_pthread_setspecific_func 
-			= (pthread_setspecific_pfn_t)dlsym(RTLD_NEXT,"pthread_setspecific");
-
-static pthread_rwlock_rdlock_pfn_t g_sys_pthread_rwlock_rdlock_func  
-			= (pthread_rwlock_rdlock_pfn_t)dlsym(RTLD_NEXT,"pthread_rwlock_rdlock");
-
-static pthread_rwlock_wrlock_pfn_t g_sys_pthread_rwlock_wrlock_func  
-			= (pthread_rwlock_wrlock_pfn_t)dlsym(RTLD_NEXT,"pthread_rwlock_wrlock");
-
-static pthread_rwlock_unlock_pfn_t g_sys_pthread_rwlock_unlock_func  
-			= (pthread_rwlock_unlock_pfn_t)dlsym(RTLD_NEXT,"pthread_rwlock_unlock");
-*/
-
-
-
 static inline unsigned long long get_tick_count()
 {
 	uint32_t lo, hi;
@@ -192,7 +176,7 @@ static inline rpchook_t * get_by_fd( int fd )
 	{
 		return g_rpchook_socket_fd[ fd ];
 	}
-	return NULL;
+	return nullptr;
 }
 static inline rpchook_t * alloc_by_fd( int fd )
 {
@@ -204,7 +188,7 @@ static inline rpchook_t * alloc_by_fd( int fd )
 		g_rpchook_socket_fd[ fd ] = lp;
 		return lp;
 	}
-	return NULL;
+	return nullptr;
 }
 static inline void free_by_fd( int fd )
 {
@@ -213,7 +197,7 @@ static inline void free_by_fd( int fd )
 		rpchook_t *lp = g_rpchook_socket_fd[ fd ];
 		if( lp )
 		{
-			g_rpchook_socket_fd[ fd ] = NULL;
+			g_rpchook_socket_fd[ fd ] = nullptr;
 			free(lp);	
 		}
 	}
@@ -334,41 +318,51 @@ int close(int fd)
 
 	return ret;
 }
+
 ssize_t read( int fd, void *buf, size_t nbyte )
 {
-	HOOK_SYS_FUNC( read );
-	
-	if( !co_is_enable_sys_hook() )
-	{
-		return g_sys_read_func( fd,buf,nbyte );
-	}
-	rpchook_t *lp = get_by_fd( fd );
+    HOOK_SYS_FUNC( read );
 
-	if( !lp || ( O_NONBLOCK & lp->user_flag ) ) 
-	{
-		ssize_t ret = g_sys_read_func( fd,buf,nbyte );
-		return ret;
-	}
-	int timeout = ( lp->read_timeout.tv_sec * 1000 ) 
-				+ ( lp->read_timeout.tv_usec / 1000 );
+    // 如果目前线程没有一个协程, 则直接执行系统调用
+    if( !co_is_enable_sys_hook() )
+    {	// dlsym以后得到的原函数
+        return g_sys_read_func( fd,buf,nbyte );
+    }
+    // 获取这个文件描述符的详细信息
+    rpchook_t *lp = get_by_fd( fd );
 
-	struct pollfd pf = { 0 };
-	pf.fd = fd;
-	pf.events = ( POLLIN | POLLERR | POLLHUP );
+    // 套接字为非阻塞的,直接进行系统调用
+    if( !lp || ( O_NONBLOCK & lp->user_flag ) )
+    {
+        ssize_t ret = g_sys_read_func( fd,buf,nbyte );
+        return ret;
+    }
 
-	int pollret = poll( &pf,1,timeout );
+    // 套接字阻塞
+    int timeout = ( lp->read_timeout.tv_sec * 1000 )
+                  + ( lp->read_timeout.tv_usec / 1000 );
 
-	ssize_t readret = g_sys_read_func( fd,(char*)buf ,nbyte );
+    struct pollfd pf = { 0 };
+    pf.fd = fd;
+    pf.events = ( POLLIN | POLLERR | POLLHUP );
 
-	if( readret < 0 )
-	{
-		co_log_err("CO_ERR: read fd %d ret %ld errno %d poll ret %d timeout %d",
-					fd,readret,errno,pollret,timeout);
-	}
+    // 调用co_poll, co_poll中会切换协程,
+    // 协程被恢复时将会从co_poll中的挂起点继续运行
+    int pollret = poll( &pf,1,timeout );
 
-	return readret;
-	
+    // 套接字准备就绪或者超时 执行hook前的系统调用
+    ssize_t readret = g_sys_read_func( fd,(char*)buf ,nbyte );
+
+    if( readret < 0 ) // 超时
+    {
+        co_log_err("CO_ERR: read fd %d ret %ld errno %d poll ret %d timeout %d",
+                   fd,readret,errno,pollret,timeout);
+    }
+    // 成功读取
+    return readret;
+
 }
+
 ssize_t write( int fd, const void *buf, size_t nbyte )
 {
 	HOOK_SYS_FUNC( write );
@@ -580,38 +574,46 @@ ssize_t recv( int socket, void *buffer, size_t length, int flags )
 
 extern int co_poll_inner( stCoEpoll_t *ctx,struct pollfd fds[], nfds_t nfds, int timeout, poll_pfn_t pollfunc);
 
+
+//TODO 这个函数到底在做什么
 int poll(struct pollfd fds[], nfds_t nfds, int timeout)
 {
-	HOOK_SYS_FUNC( poll );
+	HOOK_SYS_FUNC( poll )
 
+    // 如果本线程不存在协程或者超时时间为零的话调用hook前的poll
 	if (!co_is_enable_sys_hook() || timeout == 0) {
 		return g_sys_poll_func(fds, nfds, timeout);
 	}
-	pollfd *fds_merge = NULL;
-	nfds_t nfds_merge = 0;
-	std::map<int, int> m;  // fd --> idx
+	pollfd *fds_merge = nullptr;
+	nfds_t nfds_merge = 0; // 相当于一个单调递增的标志位
+    std::map<int, int> m;  // fd --> idx
 	std::map<int, int>::iterator it;
 	if (nfds > 1) {
 		fds_merge = (pollfd *)malloc(sizeof(pollfd) * nfds);
 		for (size_t i = 0; i < nfds; i++) {
-			if ((it = m.find(fds[i].fd)) == m.end()) {
-				fds_merge[nfds_merge] = fds[i];
-				m[fds[i].fd] = nfds_merge;
-				nfds_merge++;
+            if ((it = m.find(fds[i].fd)) == m.end()) { // 在mp中没有找到
+                fds_merge[nfds_merge] = fds[i]; // 放入merge链表
+                m[fds[i].fd] = nfds_merge; // 没找到就放进去
+                nfds_merge++; // 游标递增
+
 			} else {
 				int j = it->second;
 				fds_merge[j].events |= fds[i].events;  // merge in j slot
 			}
 		}
 	}
-
+    // 以上就相当于是一个小优化,就是查看此次poll中是否有fd相同的事件,有的话合并一下,仅此而已
 	int ret = 0;
 	if (nfds_merge == nfds || nfds == 1) {
+        // fds为poll的事件;nfds为事件数;timeout为超时时间;g_sys_poll_func为未hook的poll函数
+        // 返回值为此次就绪的事件数
+        // 在co_poll_inner中有一个协程的切换
 		ret = co_poll_inner(co_get_epoll_ct(), fds, nfds, timeout, g_sys_poll_func);
 	} else {
 		ret = co_poll_inner(co_get_epoll_ct(), fds_merge, nfds_merge, timeout,
 				g_sys_poll_func);
 		if (ret > 0) {
+		    // 把merge的事件还原一下
 			for (size_t i = 0; i < nfds; i++) {
 				it = m.find(fds[i].fd);
 				if (it != m.end()) {
@@ -922,8 +924,8 @@ int co_gethostbyname_r(const char* __restrict name,
                        char* __restrict __buf, size_t __buflen,
                        struct hostent** __restrict __result,
                        int* __restrict __h_errnop) {
-  static __thread clsCoMutex* tls_leaky_dns_lock = NULL; 
-  if(tls_leaky_dns_lock == NULL) {
+  static __thread clsCoMutex* tls_leaky_dns_lock = nullptr; 
+  if(tls_leaky_dns_lock == nullptr) {
     tls_leaky_dns_lock = new clsCoMutex();
   }
   clsSmartLock auto_lock(tls_leaky_dns_lock);
@@ -987,13 +989,13 @@ struct hostent *co_gethostbyname(const char *name)
 {
 	if (!name)
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	if (__co_hostbuf_wrap->buffer && __co_hostbuf_wrap->iBufferSize > 1024)
 	{
 		free(__co_hostbuf_wrap->buffer);
-		__co_hostbuf_wrap->buffer = NULL;
+		__co_hostbuf_wrap->buffer = nullptr;
 	}
 	if (!__co_hostbuf_wrap->buffer)
 	{
@@ -1002,7 +1004,7 @@ struct hostent *co_gethostbyname(const char *name)
 	}
 
 	struct hostent *host = &__co_hostbuf_wrap->host;
-	struct hostent *result = NULL;
+	struct hostent *result = nullptr;
 	int *h_errnop = &(__co_hostbuf_wrap->host_errno);
 
 	int ret = -1;
@@ -1019,7 +1021,7 @@ struct hostent *co_gethostbyname(const char *name)
 	{
 		return host;
 	}
-	return NULL;
+	return nullptr;
 }
 
 
