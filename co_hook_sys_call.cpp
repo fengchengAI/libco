@@ -269,7 +269,7 @@ int connect(int fd, const struct sockaddr *address, socklen_t address_len)
 	int pollret = 0;
 	struct pollfd pf = { 0 };
 
-	for(int i=0;i<3;i++) //25s * 3 = 75s
+	for(int i=0;i<3;i++) //25s * 3 = 75s  , TODO 这是什么，为什么是三次循环。
 	{
 		memset( &pf,0,sizeof(pf) );
 		pf.fd = fd;

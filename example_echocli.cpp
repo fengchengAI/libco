@@ -72,7 +72,7 @@ void AddSuccCnt()
 	int now = time(NULL);
 	if (now >iTime)
 	{
-		printf("time %d Succ Cnt %d Fail Cnt %d\n", iTime, iSuccCnt, iFailCnt);
+		printf(" time %d Succ Cnt %d Fail Cnt %d\n", iTime, iSuccCnt, iFailCnt);
 		iTime = now;
 		iSuccCnt = 0;
 		iFailCnt = 0;
@@ -87,7 +87,7 @@ void AddFailCnt()
 	int now = time(NULL);
 	if (now >iTime)
 	{
-		printf("time %d Succ Cnt %d Fail Cnt %d\n", iTime, iSuccCnt, iFailCnt);
+		printf("time %d Fail Cnt %d Fail Cnt %d\n", iTime, iSuccCnt, iFailCnt);
 		iTime = now;
 		iSuccCnt = 0;
 		iFailCnt = 0;
@@ -115,7 +115,7 @@ static void *readwrite_routine( void *arg )
 			fd = socket(PF_INET, SOCK_STREAM, 0);
 			struct sockaddr_in addr;
 			SetAddr(endpoint->ip, endpoint->port, addr);
-			ret = connect(fd,(struct sockaddr*)&addr,sizeof(addr));
+			ret = connect(fd,(struct sockaddr*)&addr,sizeof(addr)); // 假设有四次协程，前三次执行到这里的时候就回到
 						
 			if ( errno == EALREADY || errno == EINPROGRESS )
 			{       
@@ -182,10 +182,10 @@ static void *readwrite_routine( void *arg )
 int main(int argc,char *argv[])
 {
 	stEndPoint endpoint;
-	endpoint.ip = argv[1];
-	endpoint.port = atoi(argv[2]);
-	int cnt = atoi( argv[3] );
-	int proccnt = atoi( argv[4] );
+	endpoint.ip = "127.0.0.1";
+	endpoint.port = 9090;
+	int cnt = 4;
+	int proccnt = 1;
 	
 	struct sigaction sa;
 	sa.sa_handler = SIG_IGN;
@@ -193,7 +193,7 @@ int main(int argc,char *argv[])
 	
 	for(int k=0;k<proccnt;k++)
 	{
-
+        /*
 		pid_t pid = fork();
 		if( pid > 0 )
 		{
@@ -203,6 +203,7 @@ int main(int argc,char *argv[])
 		{
 			break;
 		}
+        */
 		for(int i=0;i<cnt;i++)
 		{
 			stCoRoutine_t *co = 0;

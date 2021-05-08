@@ -83,6 +83,9 @@ static void *readwrite_routine( void *arg )
 			co_poll( co_get_epoll_ct(),&pf,1,1000);
 
 			int ret = read( fd,buf,sizeof(buf) );
+            //printf(buf,ret);
+            //
+            // fflush(0);
 			if( ret > 0 )
 			{
 				ret = write( fd,buf,ret );
@@ -193,23 +196,10 @@ static int CreateTcpSocket(const unsigned short shPort /* = 0 */,const char *psz
 
 int main(int argc,char *argv[])
 {
-    /*
-	if(argc<5){
-		printf("Usage:\n"
-               "example_echosvr [IP] [PORT] [TASK_COUNT] [PROCESS_COUNT]\n"
-               "example_echosvr [IP] [PORT] [TASK_COUNT] [PROCESS_COUNT] -d   # daemonize mode\n");
-		return -1;
-	}
-	const char *ip = argv[1];
-	int port = atoi( argv[2] );
-	int cnt = atoi( argv[3] );
-	int proccnt = atoi( argv[4] );
 
-	bool deamonize = argc >= 6 && strcmp(argv[5], "-d") == 0;
-    */
     const char *ip = "127.0.0.1";
     int port = 9090;
-    int cnt = 10;
+    int cnt = 4;
     int proccnt = 1;
     bool deamonize = false;
 
@@ -225,7 +215,7 @@ int main(int argc,char *argv[])
 
 	for(int k=0;k<proccnt;k++)
 	{
-
+        /*
 		pid_t pid = fork();
 		if( pid > 0 )
 		{
@@ -235,6 +225,7 @@ int main(int argc,char *argv[])
 		{
 			break;
 		}
+		*/
 		for(int i=0;i<cnt;i++)
 		{
 			task_t * task = (task_t*)calloc( 1,sizeof(task_t) );

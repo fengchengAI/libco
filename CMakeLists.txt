@@ -25,7 +25,7 @@ set(SOURCE_FILES
 
 # Add static and shared library target
 add_library(colib_static STATIC ${SOURCE_FILES})
-add_library(colib_shared SHARED ${SOURCE_FILES} example_test.cpp)
+add_library(colib_shared SHARED ${SOURCE_FILES})
 
 # Set library output name
 set_target_properties(colib_static PROPERTIES OUTPUT_NAME colib)
